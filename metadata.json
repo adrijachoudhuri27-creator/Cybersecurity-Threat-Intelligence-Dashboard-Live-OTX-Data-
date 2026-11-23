@@ -1,0 +1,5 @@
+{
+  "name": "Sentinel Intel: Cloud Threat Framework",
+  "description": "An aggregated cybersecurity threat intelligence framework for cloud-based monitoring, analysis, and response.",
+  "requestFramePermissions": []
+}
