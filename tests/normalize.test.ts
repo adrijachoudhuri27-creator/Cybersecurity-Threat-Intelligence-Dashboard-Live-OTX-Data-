@@ -121,7 +121,7 @@ describe('OTX attack_ids & word-boundary attribute derivation', () => {
     assert.equal(benignWords.category, 'C2 Infrastructure');
   });
 
-  it('triggers Critical severity on whole-word exploit/ransomware/apt terms', () => {
+  it('triggers Critical severity on whole-word exploit/ransomware/apt terms including numbered APTs', () => {
     const critical = deriveOtxAttributes({
       tags: ['ransomware', 'apt'],
       attackIds: [{ id: 'T1486', name: 'Data Encrypted for Impact' }].map((a) => a.id),
@@ -133,6 +133,14 @@ describe('OTX attack_ids & word-boundary attribute derivation', () => {
     assert.equal(critical.category, 'Ransomware & Extortion');
     assert.equal(critical.severity, 'Critical');
     assert.ok(critical.confidence >= 90);
+
+    const aptNumbered = deriveOtxAttributes({
+      tags: ['apt28'],
+      attackIds: [],
+      adversary: 'Unattributed',
+      indicatorCount: 2,
+    });
+    assert.equal(aptNumbered.severity, 'Critical');
   });
 
   it('derives CISA KEV severity from knownRansomwareCampaignUse', () => {

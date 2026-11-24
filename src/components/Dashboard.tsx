@@ -16,8 +16,8 @@ import type {
   ThreatIndicator,
   ThreatStatus,
 } from '../types';
-import PowerBIOverview from './PowerBIOverview';
-import StreamlitExplorer from './StreamlitExplorer';
+import ExecutiveOverview from './ExecutiveOverview';
+import ParameterExplorer from './ParameterExplorer';
 import PipelineWorkspace from './PipelineWorkspace';
 import IndicatorLedger from './IndicatorLedger';
 
@@ -345,7 +345,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'overview' && (
-            <PowerBIOverview
+            <ExecutiveOverview
               data={dashboardData}
               loading={loading}
               selectedCategory={selectedCategory}
@@ -361,7 +361,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'explorer' && (
-            <StreamlitExplorer
+            <ParameterExplorer
               data={dashboardData}
               loading={loading}
               minRecurrence={minRecurrence}

@@ -10,7 +10,7 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 
 export interface ThreatDatabase {
   db: Database.Database;
-  recomputeRobustZScores: () => { median: number; mad: number; outliers: number };
+  recomputeRobustZScores: () => { median: number; mad: number; outliers: number; liveOutliers: number };
   upsertNormalizedIndicator: (params: {
     pulseId: string;
     pulseTitle: string;
@@ -111,7 +111,7 @@ export function createDatabase(dbPath: string): ThreatDatabase {
     );
   `);
 
-  function recomputeRobustZScores(): { median: number; mad: number; outliers: number } {
+  function recomputeRobustZScores(): { median: number; mad: number; outliers: number; liveOutliers: number } {
     const syncCountsTx = db.transaction(() => {
       db.prepare(`
         UPDATE threat_indicators
@@ -128,10 +128,10 @@ export function createDatabase(dbPath: string): ThreatDatabase {
     syncCountsTx();
 
     const rows = db
-      .prepare('SELECT id, recurrence_count FROM threat_indicators')
-      .all() as Array<{ id: string; recurrence_count: number }>;
+      .prepare('SELECT id, recurrence_count, is_sample FROM threat_indicators')
+      .all() as Array<{ id: string; recurrence_count: number; is_sample: number }>;
 
-    if (rows.length === 0) return { median: 0, mad: 0, outliers: 0 };
+    if (rows.length === 0) return { median: 0, mad: 0, outliers: 0, liveOutliers: 0 };
 
     const values = rows.map((r) => r.recurrence_count);
     const { medianVal, madVal, zScores } = computeRobustZScores(values);
@@ -148,7 +148,14 @@ export function createDatabase(dbPath: string): ThreatDatabase {
     });
     updateTx();
 
-    return { median: medianVal, mad: madVal, outliers };
+    const liveRows = rows.filter((r) => r.is_sample === 0);
+    let liveOutliers = 0;
+    if (liveRows.length > 0) {
+      const liveZ = computeRobustZScores(liveRows.map((r) => r.recurrence_count)).zScores;
+      liveOutliers = liveZ.filter((z) => z >= 1.5).length;
+    }
+
+    return { median: medianVal, mad: madVal, outliers, liveOutliers };
   }
 
   function upsertNormalizedIndicator(params: {

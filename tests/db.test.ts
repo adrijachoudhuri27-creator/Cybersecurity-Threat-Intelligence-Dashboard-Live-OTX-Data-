@@ -98,4 +98,30 @@ describe('SQLite sightings deduplication & recurrence stability', () => {
     assert.equal(row.recurrence_count, 2);
     assert.equal(row.days_observed, 1);
   });
+
+  it('computes liveOutliers strictly across is_sample = 0 rows without sample fixture bleed', () => {
+    const store = createDatabase(':memory:');
+    store.seedSampleIntel();
+
+    // Insert uniform live indicators (each with 1 sighting)
+    for (const cve of ['CVE-2025-1001', 'CVE-2025-1002', 'CVE-2025-1003']) {
+      store.upsertNormalizedIndicator({
+        pulseId: 'kev-live',
+        pulseTitle: 'CISA KEV Live Catalog Sync',
+        rawToken: cve,
+        source: 'CISA KEV',
+        category: 'Supply Chain / CVE',
+        severity: 'High',
+        confidence: 94,
+        mitreTactic: 'Execution',
+        country: 'GLOBAL',
+        asn: 'Vendor',
+        seenAt: '2026-11-24T07:00:00.000Z',
+        isSample: false,
+      });
+    }
+
+    const stats = store.recomputeRobustZScores();
+    assert.equal(stats.liveOutliers, 0);
+  });
 });

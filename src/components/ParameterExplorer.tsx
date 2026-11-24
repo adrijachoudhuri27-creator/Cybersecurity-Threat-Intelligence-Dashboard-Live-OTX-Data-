@@ -15,7 +15,7 @@ import {
 import { Download, RotateCcw } from 'lucide-react';
 import type { DashboardResponse, FeedSourceType, IndicatorType, ThreatIndicator } from '../types';
 
-interface StreamlitExplorerProps {
+interface ParameterExplorerProps {
   data: DashboardResponse | null;
   loading: boolean;
   minRecurrence: number;
@@ -41,7 +41,7 @@ const SOURCES: Array<'' | FeedSourceType> = [
   'Manual Batch',
 ];
 
-export default function StreamlitExplorer({
+export default function ParameterExplorer({
   data,
   loading,
   minRecurrence,
@@ -56,7 +56,7 @@ export default function StreamlitExplorer({
   onChangeType,
   onResetParams,
   onInspectIndicator,
-}: StreamlitExplorerProps) {
+}: ParameterExplorerProps) {
   const handleDownloadFilteredCsv = () => {
     if (!data?.filteredIndicators.length) return;
     const headers = [

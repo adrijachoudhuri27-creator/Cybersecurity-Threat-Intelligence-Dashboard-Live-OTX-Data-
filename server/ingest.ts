@@ -326,7 +326,7 @@ export async function syncLiveOsintFeeds(): Promise<{
     duplicatesRemoved: mergedNewSightings + duplicateSamePulse,
     malformedDropped: dropped,
     normalizedCount: persisted + mergedNewSightings,
-    highRecurrenceOutliers: stats.outliers,
+    highRecurrenceOutliers: stats.liveOutliers,
     durationMs,
     status,
     errorMessage: feedErrors.length > 0 ? feedErrors.join(' | ') : null,
@@ -458,7 +458,7 @@ export function ingestCustomBatch(rawText: string, sourceLabel: FeedSourceType =
     duplicatesMerged,
     droppedInvalid,
     persistedNew + duplicatesMerged,
-    stats.outliers,
+    stats.liveOutliers,
     durationMs
   );
 

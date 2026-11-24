@@ -295,7 +295,7 @@ export function deriveOtxAttributes(pulse: {
 
   const hasAdversary = Boolean(pulse.adversary && pulse.adversary !== 'Unattributed');
   // Strict word-boundary checks; 'active' intentionally excluded from severity keywords
-  const isCriticalKeyword = /\b(?:ransomware|ransom|zero-day|0day|apt|rce|exploited|exploit)\b/i.test(combined);
+  const isCriticalKeyword = /\b(?:ransomware|ransom|zero-day|0day|apt\d*|rce|exploited|exploit)\b/i.test(combined);
   const severity: ThreatSeverity =
     isCriticalKeyword || (hasAdversary && (pulse.indicatorCount || 0) >= 8)
       ? 'Critical'

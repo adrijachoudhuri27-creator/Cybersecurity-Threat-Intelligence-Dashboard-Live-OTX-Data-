@@ -14,7 +14,7 @@ import {
 import { Download, RotateCcw, ArrowUpRight } from 'lucide-react';
 import type { DashboardResponse, FeedSourceType, ThreatIndicator } from '../types';
 
-interface PowerBIOverviewProps {
+interface ExecutiveOverviewProps {
   data: DashboardResponse | null;
   loading: boolean;
   selectedCategory: string;
@@ -50,7 +50,7 @@ const STATUS_TEXT_CLASS: Record<string, string> = {
   Mitigated: 'text-emerald-400',
 };
 
-export default function PowerBIOverview({
+export default function ExecutiveOverview({
   data,
   loading,
   selectedCategory,
@@ -62,7 +62,7 @@ export default function PowerBIOverview({
   onResetCrossFilters,
   onInspectIndicator,
   onExportCsv,
-}: PowerBIOverviewProps) {
+}: ExecutiveOverviewProps) {
   const hasActiveFilter = Boolean(selectedCategory || selectedType || selectedSource);
 
   if (loading && !data) {
