@@ -24,6 +24,7 @@ export interface ThreatIndicator {
   status: ThreatStatus;
   rawSample: string;
   cleaningNotes: string;
+  isSample: boolean;
 }
 
 export interface ThreatPulse {
@@ -38,6 +39,7 @@ export interface ThreatPulse {
   rawIndicatorCount: number;
   cleanedIndicatorCount: number;
   isLive: boolean;
+  isSample: boolean;
 }
 
 export interface PipelineRun {
@@ -48,30 +50,33 @@ export interface PipelineRun {
   duplicatesRemoved: number;
   malformedDropped: number;
   normalizedCount: number;
-  anomalySpikesDetected: number;
+  highRecurrenceOutliers: number;
   durationMs: number;
-  status: 'Completed' | 'Live Sync' | 'Cached Fallback';
+  status: 'Completed' | 'Live Sync' | 'Partial' | 'Failed';
+  errorMessage?: string | null;
 }
 
 export interface DashboardKPIs {
   totalIndicators: number;
+  sampleCount: number;
+  liveCount: number;
   activeCritical: number;
   recurringPatterns: number;
-  anomalySpikes: number;
+  highRecurrenceOutliers: number;
   duplicatesRemovedTotal: number;
   deduplicationRate: number;
-  meanRecurrence: number;
-  stdRecurrence: number;
-  maxZScore: number;
-  lastSyncAt: string;
+  medianRecurrence: number;
+  madRecurrence: number;
+  maxRobustZ: number;
+  lastSyncAt: string | null;
   pulseCount: number;
 }
 
 export interface TimelineBucket {
   date: string;
-  rawIngested: number;
-  cleanedStored: number;
-  anomalyCount: number;
+  distinctSightings: number;
+  syncRawCount: number;
+  syncCleanCount: number;
 }
 
 export interface BreakdownItem {
@@ -91,6 +96,7 @@ export interface ScatterPoint {
   zScore: number;
   confidence: number;
   source: FeedSourceType;
+  isSample: boolean;
 }
 
 export interface DashboardResponse {
@@ -114,7 +120,6 @@ export interface CustomIngestAuditItem {
   type: IndicatorType | 'Invalid';
   action: 'Persisted' | 'Merged Duplicate' | 'Dropped (Private/Malformed)';
   reason: string;
-  zScore?: number;
 }
 
 export interface CustomIngestResponse {
@@ -135,4 +140,9 @@ export interface PythonModuleSpec {
   libraries: string[];
   description: string;
   code: string;
+}
+
+export interface AppConfig {
+  readOnlyDemo: boolean;
+  authRequired: boolean;
 }

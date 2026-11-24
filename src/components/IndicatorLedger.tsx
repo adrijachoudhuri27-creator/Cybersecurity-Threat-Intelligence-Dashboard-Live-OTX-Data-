@@ -5,6 +5,7 @@ import type { ThreatIndicator, ThreatSeverity, ThreatStatus } from '../types';
 interface IndicatorLedgerProps {
   indicators: ThreatIndicator[];
   loading: boolean;
+  readOnlyDemo: boolean;
   searchQuery: string;
   selectedSeverity: string;
   selectedStatus: string;
@@ -37,6 +38,7 @@ const STATUS_COLOR: Record<ThreatStatus, string> = {
 export default function IndicatorLedger({
   indicators,
   loading,
+  readOnlyDemo,
   searchQuery,
   selectedSeverity,
   selectedStatus,
@@ -50,11 +52,16 @@ export default function IndicatorLedger({
   onUpdateStatus,
 }: IndicatorLedgerProps) {
   const [updatingId, setUpdatingId] = React.useState<string | null>(null);
+  const [triageError, setTriageError] = React.useState<string | null>(null);
 
   const handleStatusClick = async (id: string, nextStatus: ThreatStatus) => {
+    if (readOnlyDemo) return;
     setUpdatingId(id);
+    setTriageError(null);
     try {
       await onUpdateStatus(id, nextStatus);
+    } catch (err) {
+      setTriageError(err instanceof Error ? err.message : 'Status update failed');
     } finally {
       setUpdatingId(null);
     }
@@ -62,7 +69,6 @@ export default function IndicatorLedger({
 
   return (
     <div className="space-y-4">
-      {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div className="flex flex-wrap items-center gap-3 flex-1 min-w-[260px]">
           <div className="relative flex-1 max-w-sm">
@@ -117,7 +123,6 @@ export default function IndicatorLedger({
         </button>
       </div>
 
-      {/* Main Ledger + Optional Right Inspection Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div
           className={`${
@@ -152,12 +157,12 @@ export default function IndicatorLedger({
                 <thead>
                   <tr className="border-b border-slate-800 text-xs font-medium text-slate-400">
                     <th className="py-3 px-4">Normalized Indicator</th>
-                    <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Origin</th>
                     <th className="py-3 px-3">Source Feed</th>
                     <th className="py-3 px-3">Category</th>
                     <th className="py-3 px-3">Severity</th>
-                    <th className="py-3 px-3 text-right">Hits</th>
-                    <th className="py-3 px-3 text-right">Z-Score</th>
+                    <th className="py-3 px-3 text-right">Sightings</th>
+                    <th className="py-3 px-3 text-right">Robust Z</th>
                     <th className="py-3 px-4 text-right">Status</th>
                   </tr>
                 </thead>
@@ -175,8 +180,12 @@ export default function IndicatorLedger({
                         <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[220px] truncate">
                           {item.normalizedIndicator}
                         </td>
-                        <td className="py-2.5 px-3 font-mono text-slate-400 whitespace-nowrap">
-                          {item.type}
+                        <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
+                          <span className="font-mono">{item.type}</span>{' '}
+                          <span className="text-slate-600">·</span>{' '}
+                          <span className={item.isSample ? 'text-slate-400' : 'text-blue-400'}>
+                            {item.isSample ? 'Sample' : 'Live'}
+                          </span>
                         </td>
                         <td className="py-2.5 px-3 text-slate-300 whitespace-nowrap">
                           {item.source}
@@ -209,13 +218,13 @@ export default function IndicatorLedger({
           )}
         </div>
 
-        {/* Indicator Inspection & Triage Panel */}
         {selectedIndicator && (
           <aside className="lg:col-span-4 bg-[#111827] border border-slate-800 rounded-lg divide-y divide-slate-800">
             <div className="p-5 flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs text-slate-400">
-                  {selectedIndicator.type} · {selectedIndicator.source}
+                  {selectedIndicator.type} · {selectedIndicator.source} ·{' '}
+                  {selectedIndicator.isSample ? 'Sample Fixture' : 'Live OSINT'}
                 </p>
                 <h3 className="mt-1 text-sm font-mono font-semibold text-slate-100 break-all">
                   {selectedIndicator.normalizedIndicator}
@@ -241,13 +250,13 @@ export default function IndicatorLedger({
                 <span className="text-slate-200 text-right">{selectedIndicator.mitreTactic}</span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-slate-400">Cross-Feed Recurrence</span>
+                <span className="text-slate-400">Distinct Sightings</span>
                 <span className="font-mono tabular-nums text-slate-100">
                   {selectedIndicator.recurrenceCount} sightings
                 </span>
               </div>
               <div className="flex justify-between gap-2">
-                <span className="text-slate-400">NumPy Z-Score</span>
+                <span className="text-slate-400">Robust Z-Score (MAD)</span>
                 <span className="font-mono tabular-nums text-amber-400">
                   {selectedIndicator.zScore >= 0
                     ? `+${selectedIndicator.zScore.toFixed(2)}`
@@ -272,7 +281,10 @@ export default function IndicatorLedger({
             </div>
 
             <div className="p-5 space-y-2.5">
-              <p className="text-xs font-medium text-slate-300">Analyst Triage Status</p>
+              <p className="text-xs font-medium text-slate-300">
+                Analyst Triage Status {readOnlyDemo ? '(Read-Only Demo)' : ''}
+              </p>
+              {triageError && <p className="text-xs text-red-400">{triageError}</p>}
               <div className="grid grid-cols-3 gap-2">
                 {(['Active', 'Investigating', 'Mitigated'] as ThreatStatus[]).map((st) => {
                   const active = selectedIndicator.status === st;
@@ -280,9 +292,9 @@ export default function IndicatorLedger({
                     <button
                       key={st}
                       type="button"
-                      disabled={updatingId === selectedIndicator.id}
+                      disabled={readOnlyDemo || updatingId === selectedIndicator.id}
                       onClick={() => handleStatusClick(selectedIndicator.id, st)}
-                      className={`px-2 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap ${
+                      className={`px-2 py-2 text-xs font-medium rounded-md border transition-colors whitespace-nowrap disabled:opacity-40 ${
                         active
                           ? 'bg-blue-600 border-blue-500 text-white'
                           : 'bg-[#0B1120] border-slate-700 text-slate-300 hover:bg-slate-800'

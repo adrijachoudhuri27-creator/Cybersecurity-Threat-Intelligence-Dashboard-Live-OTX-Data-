@@ -13,21 +13,22 @@ interface PipelineWorkspaceProps {
   pulses: ThreatPulse[];
   pythonModules: PythonModuleSpec[];
   syncing: boolean;
+  readOnlyDemo: boolean;
   onSyncLiveFeeds: () => Promise<void>;
   onAfterIngest: () => Promise<void>;
 }
 
 const SAMPLE_DIRTY_BATCH = `185[.]220[.]101[.]44
+91.92.240.118:443
 192.168.1.45
 10.0.4.12
+100.64.0.15
+198.51.100.77
 hxxps://login-okta-support[.]com/auth
 SSO-Okta-CloudVerify[.]com
 CVE-2024-3400
 cve-2024-50623
-91.92.240.118
-127.0.0.1
 bad_malformed_token_$$
-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 45.142.212.19`;
 
 export default function PipelineWorkspace({
@@ -35,6 +36,7 @@ export default function PipelineWorkspace({
   pulses,
   pythonModules,
   syncing,
+  readOnlyDemo,
   onSyncLiveFeeds,
   onAfterIngest,
 }: PipelineWorkspaceProps) {
@@ -47,7 +49,7 @@ export default function PipelineWorkspace({
   const [copiedFile, setCopiedFile] = React.useState<string | null>(null);
 
   const handleRunCleaning = async () => {
-    if (!rawText.trim()) return;
+    if (!rawText.trim() || readOnlyDemo) return;
     setIngesting(true);
     setIngestError(null);
     try {
@@ -56,9 +58,9 @@ export default function PipelineWorkspace({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rawText, sourceLabel }),
       });
-      if (!resp.ok) throw new Error('Failed to process raw batch');
-      const data = (await resp.json()) as CustomIngestResponse;
-      setIngestResult(data);
+      const json = (await resp.json()) as CustomIngestResponse & { error?: string };
+      if (!resp.ok) throw new Error(json.error || 'Failed to process raw batch');
+      setIngestResult(json);
       await onAfterIngest();
     } catch (err) {
       setIngestError(err instanceof Error ? err.message : 'Cleaning failed');
@@ -89,27 +91,27 @@ export default function PipelineWorkspace({
             AlienVault OTX & Selenium
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            REST API pulse polling paired with headless Selenium extraction from web security advisories.
+            REST API pulse polling paired with headless Selenium extraction and date-sorted CISA KEV feeds.
           </p>
         </div>
 
         <div className="p-5">
           <p className="text-xs font-medium text-blue-400">02. Consolidation & Cleaning</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
-            Pandas Deduplication
+            net.BlockList & Sightings
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            Refangs bracketed indicators, removes RFC1918 private ranges, and merges cross-feed duplicates.
+            Strips ports, refangs bracketed IOCs, drops private/CGNAT/documentation IPs, and tracks distinct sightings.
           </p>
         </div>
 
         <div className="p-5">
           <p className="text-xs font-medium text-blue-400">03. Statistical Analysis</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
-            NumPy Z-Score Engine
+            Median & MAD Robust Z
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            Computes recurrence mean and standard deviation to surface statistically anomalous campaigns.
+            Computes robust Modified Z-scores resistant to skewed recurrence distributions to surface outliers.
           </p>
         </div>
 
@@ -119,7 +121,7 @@ export default function PipelineWorkspace({
             Power BI & Streamlit
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            Publishes normalized datasets for executive cross-filtering and interactive parameter exploration.
+            Publishes normalized CSV and interactive views with explicit live vs. sample provenance.
           </p>
         </div>
       </section>
@@ -133,7 +135,7 @@ export default function PipelineWorkspace({
                 Raw Feed Consolidation Sandbox
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Test normalization, RFC1918 filtering, and deduplication against SQLite
+                Test port stripping, net.BlockList filtering, and distinct sighting merge rules
               </p>
             </div>
             <button
@@ -170,7 +172,7 @@ export default function PipelineWorkspace({
               id="raw-batch-input"
               value={rawText}
               onChange={(e) => setRawText(e.target.value)}
-              placeholder="Paste raw IPs, defanged domains (example[.]com), hxxps:// URLs, CVEs, or SHA-256 hashes..."
+              placeholder="Paste raw IPs (with or without :port), defanged domains, hxxps:// URLs, CVEs, or SHA-256 hashes..."
               className="w-full h-48 bg-[#0B1120] border border-slate-700 rounded-md p-3 text-xs font-mono text-slate-100 placeholder:text-slate-500 outline-none focus:border-blue-500 resize-none thin-scrollbar"
             />
           </div>
@@ -181,17 +183,17 @@ export default function PipelineWorkspace({
             <button
               type="button"
               onClick={handleRunCleaning}
-              disabled={ingesting || !rawText.trim()}
+              disabled={readOnlyDemo || ingesting || !rawText.trim()}
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-lg transition-colors whitespace-nowrap"
             >
               <Play className="w-3.5 h-3.5" />
-              {ingesting ? 'Consolidating...' : 'Run Cleaning Pipeline'}
+              {readOnlyDemo ? 'Read-Only Demo' : ingesting ? 'Consolidating...' : 'Run Cleaning Pipeline'}
             </button>
 
             <button
               type="button"
               onClick={onSyncLiveFeeds}
-              disabled={syncing}
+              disabled={readOnlyDemo || syncing}
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-slate-200 bg-[#0B1120] hover:bg-slate-800 disabled:opacity-40 border border-slate-700 rounded-lg transition-colors whitespace-nowrap"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
@@ -200,7 +202,6 @@ export default function PipelineWorkspace({
           </div>
         </div>
 
-        {/* Cleaning Audit Output */}
         <div className="lg:col-span-7 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2">
             <div>
@@ -228,7 +229,7 @@ export default function PipelineWorkspace({
             <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
               <p className="text-sm text-slate-300">No custom cleaning batch executed yet.</p>
               <p className="text-xs text-slate-500 mt-1 max-w-md">
-                Click Load Sample Batch and Run Cleaning Pipeline to inspect how bracketed domains, private IPs, and duplicates are normalized.
+                Click Load Sample Batch and Run Cleaning Pipeline to verify port stripping, CGNAT/documentation IP filtering, and sighting deduplication.
               </p>
             </div>
           ) : (
@@ -272,70 +273,91 @@ export default function PipelineWorkspace({
         </div>
       </section>
 
-      {/* Pipeline Run Execution History + Active OSINT Pulses */}
+      {/* Pipeline Run Execution History + Collected Pulses */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800">
             <h3 className="text-sm font-semibold text-slate-100">Pipeline Execution History</h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Recorded OSINT REST API syncs and Pandas consolidation runs
+              Genuine OSINT REST syncs and batch runs (zero synthetic history)
             </p>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="border-b border-slate-800 text-xs font-medium text-slate-400">
-                  <th className="py-2.5 px-4">Source Pipeline</th>
-                  <th className="py-2.5 px-3 text-right">Raw</th>
-                  <th className="py-2.5 px-3 text-right">Deduped</th>
-                  <th className="py-2.5 px-3 text-right">Dropped</th>
-                  <th className="py-2.5 px-3 text-right">Clean</th>
-                  <th className="py-2.5 px-4 text-right">Mode</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/80 text-xs">
-                {pipelineRuns.slice(0, 8).map((run) => (
-                  <tr key={run.id} className="hover:bg-slate-800/30">
-                    <td className="py-2.5 px-4">
-                      <div className="text-slate-200 font-medium">{run.sourceName}</div>
-                      <div className="text-[11px] font-mono text-slate-500 tabular-nums">
-                        {new Date(run.timestamp).toLocaleString([], {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}{' '}
-                        · {run.durationMs}ms
-                      </div>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-300">
-                      {run.rawCount}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-blue-400">
-                      {run.duplicatesRemoved}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-amber-400">
-                      {run.malformedDropped}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-mono tabular-nums text-emerald-400">
-                      {run.normalizedCount}
-                    </td>
-                    <td className="py-2.5 px-4 text-right whitespace-nowrap text-slate-300">
-                      {run.status}
-                    </td>
+          {pipelineRuns.length === 0 ? (
+            <div className="p-10 text-center">
+              <p className="text-sm text-slate-300">No live pipeline runs recorded yet.</p>
+              <p className="text-xs text-slate-500 mt-1">
+                Trigger Sync Live Feeds or Run Cleaning Pipeline to record real execution metrics.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-xs font-medium text-slate-400">
+                    <th className="py-2.5 px-4">Source Pipeline</th>
+                    <th className="py-2.5 px-3 text-right">Raw</th>
+                    <th className="py-2.5 px-3 text-right">Deduped</th>
+                    <th className="py-2.5 px-3 text-right">Dropped</th>
+                    <th className="py-2.5 px-3 text-right">Clean</th>
+                    <th className="py-2.5 px-4 text-right">Outcome</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-800/80 text-xs">
+                  {pipelineRuns.slice(0, 8).map((run) => (
+                    <tr key={run.id} className="hover:bg-slate-800/30">
+                      <td className="py-2.5 px-4">
+                        <div className="text-slate-200 font-medium">{run.sourceName}</div>
+                        <div className="text-[11px] font-mono text-slate-500 tabular-nums">
+                          {new Date(run.timestamp).toLocaleString([], {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}{' '}
+                          · {run.durationMs}ms
+                        </div>
+                        {run.errorMessage && (
+                          <div className="text-[11px] text-amber-400 mt-0.5">
+                            {run.errorMessage}
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-300">
+                        {run.rawCount}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-blue-400">
+                        {run.duplicatesRemoved}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-amber-400">
+                        {run.malformedDropped}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-emerald-400">
+                        {run.normalizedCount}
+                      </td>
+                      <td
+                        className={`py-2.5 px-4 text-right whitespace-nowrap font-medium ${
+                          run.status === 'Failed'
+                            ? 'text-red-400'
+                            : run.status === 'Partial'
+                              ? 'text-amber-400'
+                              : 'text-emerald-400'
+                        }`}
+                      >
+                        {run.status}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Collected Pulses & Web Advisories */}
         <div className="lg:col-span-5 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800">
             <h3 className="text-sm font-semibold text-slate-100">Collected Pulses & Advisories</h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Recent AlienVault OTX, CISA KEV, and scraped threat bulletins
+              Provenance tagged explicitly as Live REST or Sample Fixture
             </p>
           </div>
           <div className="divide-y divide-slate-800/80 max-h-[360px] overflow-y-auto thin-scrollbar">
@@ -350,9 +372,11 @@ export default function PipelineWorkspace({
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-slate-400">
-                  <span>{pulse.source}</span>
+                  <span className={pulse.isSample ? 'text-slate-400' : 'text-blue-400'}>
+                    {pulse.isSample ? 'Sample Fixture' : 'Live Feed'}
+                  </span>
                   <span aria-hidden="true">·</span>
-                  <span>{pulse.adversary}</span>
+                  <span>{pulse.source}</span>
                   <span aria-hidden="true">·</span>
                   <span className="font-mono tabular-nums">
                     {pulse.cleanedIndicatorCount}/{pulse.rawIndicatorCount} clean IOCs
@@ -373,7 +397,7 @@ export default function PipelineWorkspace({
                 Python ETL & Streamlit Reference Modules
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Production Python scripts covering OTX REST collection, Selenium scraping, Pandas/NumPy cleaning, and Streamlit
+                Reference Python scripts for OTX REST collection, Selenium scraping, Pandas/NumPy robust Z-scoring, and Streamlit
               </p>
             </div>
             <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#0B1120] border border-slate-800 rounded-lg">

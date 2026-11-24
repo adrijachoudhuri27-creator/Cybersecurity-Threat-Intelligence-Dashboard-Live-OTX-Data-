@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react';
 import type {
+  AppConfig,
   DashboardResponse,
   PythonModuleSpec,
   ThreatIndicator,
@@ -33,7 +34,6 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = React.useState<WorkspaceTab>('powerbi');
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
-  // Shared cross-filter & query states
   const [selectedCategory, setSelectedCategory] = React.useState('');
   const [selectedType, setSelectedType] = React.useState('');
   const [selectedSource, setSelectedSource] = React.useState('');
@@ -44,6 +44,10 @@ export default function Dashboard() {
   const [zThreshold, setZThreshold] = React.useState(-10);
   const [days, setDays] = React.useState(30);
 
+  const [appConfig, setAppConfig] = React.useState<AppConfig>({
+    readOnlyDemo: false,
+    authRequired: false,
+  });
   const [dashboardData, setDashboardData] = React.useState<DashboardResponse | null>(null);
   const [pythonModules, setPythonModules] = React.useState<PythonModuleSpec[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -72,7 +76,6 @@ export default function Dashboard() {
       const data = (await resp.json()) as DashboardResponse;
       setDashboardData(data);
 
-      // Keep inspected indicator synchronized if it is still in dataset
       setInspectedIndicator((prev) => {
         if (!prev) return null;
         return data.filteredIndicators.find((i) => i.id === prev.id) || prev;
@@ -99,33 +102,57 @@ export default function Dashboard() {
   }, [fetchDashboard]);
 
   React.useEffect(() => {
+    fetch('/api/config')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((cfg: AppConfig | null) => {
+        if (cfg) setAppConfig(cfg);
+      })
+      .catch((err) => console.error('Failed to load app config:', err));
+
     fetch('/api/python-modules')
       .then((r) => (r.ok ? r.json() : { modules: [] }))
       .then((res: { modules?: PythonModuleSpec[] }) => {
         if (Array.isArray(res.modules)) setPythonModules(res.modules);
       })
-      .catch(() => {
-        // Non-blocking
-      });
+      .catch((err) => console.error('Failed to load python modules:', err));
   }, []);
 
   const handleSyncLiveFeeds = async () => {
+    if (appConfig.readOnlyDemo) return;
     setSyncing(true);
     setErrorMsg(null);
+    setSyncNotice(null);
     try {
       const resp = await fetch('/api/pipeline/sync', { method: 'POST' });
-      if (!resp.ok) throw new Error('OSINT feed sync failed');
       const json = (await resp.json()) as {
-        run?: { sourceName: string; normalizedCount: number; anomalySpikesDetected: number; status: string };
+        ok?: boolean;
+        error?: string;
+        feedErrors?: string[];
+        run?: {
+          sourceName: string;
+          normalizedCount: number;
+          highRecurrenceOutliers: number;
+          status: string;
+        };
       };
+
+      if (!resp.ok) {
+        throw new Error(json.error || 'OSINT feed sync failed');
+      }
+
       if (json.run) {
+        const partialNote =
+          json.feedErrors && json.feedErrors.length > 0
+            ? ` Partial warnings: ${json.feedErrors.join('; ')}`
+            : '';
         setSyncNotice(
-          `${json.run.status}: ${json.run.sourceName} — ${json.run.normalizedCount} normalized IOCs · ${json.run.anomalySpikesDetected} statistical anomaly spikes.`
+          `${json.run.status}: ${json.run.sourceName} — ${json.run.normalizedCount} normalized IOCs · ${json.run.highRecurrenceOutliers} high-recurrence outliers.${partialNote}`
         );
       }
       await fetchDashboard();
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Live OSINT sync error');
+      await fetchDashboard();
     } finally {
       setSyncing(false);
     }
@@ -137,7 +164,8 @@ export default function Dashboard() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
-    if (!resp.ok) throw new Error('Failed to update status');
+    const body = (await resp.json()) as { error?: string };
+    if (!resp.ok) throw new Error(body.error || 'Failed to update status');
     setInspectedIndicator((prev) => (prev && prev.id === id ? { ...prev, status } : prev));
     await fetchDashboard();
   };
@@ -167,7 +195,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#0B1120] text-[#F8FAFC] flex">
-      {/* Desktop Left Sidebar */}
       <aside className="hidden lg:flex lg:w-[248px] lg:shrink-0 lg:flex-col bg-[#111827] border-r border-slate-800">
         <div className="h-14 px-5 flex items-center gap-2.5 border-b border-slate-800">
           <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center shrink-0">
@@ -207,13 +234,9 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div
-            className="fixed inset-0 bg-black/60"
-            onClick={() => setMobileMenuOpen(false)}
-          />
+          <div className="fixed inset-0 bg-black/60" onClick={() => setMobileMenuOpen(false)} />
           <aside className="relative w-64 max-w-[80vw] bg-[#111827] border-r border-slate-800 flex flex-col z-10">
             <div className="h-14 px-4 flex items-center justify-between border-b border-slate-800">
               <span className="font-semibold text-base text-slate-50">Sentinel Intel</span>
@@ -253,9 +276,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Main Content Area */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Top Header Contract: Contextual breadcrumb left — 1 primary CTA right */}
         <header className="h-14 bg-[#0B1120]/95 border-b border-slate-800 px-4 lg:px-8 flex items-center justify-between gap-4 sticky top-0 z-30">
           <div className="flex items-center gap-3 min-w-0">
             <button
@@ -276,16 +297,25 @@ export default function Dashboard() {
           <button
             type="button"
             onClick={handleSyncLiveFeeds}
-            disabled={syncing}
+            disabled={appConfig.readOnlyDemo || syncing}
             className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing OSINT Feeds...' : 'Sync Live Feeds'}
+            {appConfig.readOnlyDemo
+              ? 'Read-Only Demo'
+              : syncing
+                ? 'Syncing OSINT Feeds...'
+                : 'Sync Live Feeds'}
           </button>
         </header>
 
-        {/* Workspace Viewport */}
         <main className="flex-1 max-w-[1440px] w-full mx-auto p-4 lg:p-8 space-y-6">
+          {dashboardData && dashboardData.kpis.liveCount === 0 && (
+            <div className="px-4 py-3 bg-[#111827] border border-slate-800 rounded-lg text-xs text-slate-300">
+              Showing labeled sample fixtures only. Click <span className="font-medium text-slate-100">Sync Live Feeds</span> to ingest live AlienVault OTX, CISA KEV, and Abuse.ch Feodo threat data.
+            </div>
+          )}
+
           {syncNotice && (
             <div className="flex items-center justify-between gap-4 px-4 py-3 bg-[#111827] border border-slate-700 rounded-lg text-xs text-slate-200">
               <span>{syncNotice}</span>
@@ -354,6 +384,7 @@ export default function Dashboard() {
               pulses={dashboardData?.pulses || []}
               pythonModules={pythonModules}
               syncing={syncing}
+              readOnlyDemo={appConfig.readOnlyDemo}
               onSyncLiveFeeds={handleSyncLiveFeeds}
               onAfterIngest={fetchDashboard}
             />
@@ -363,6 +394,7 @@ export default function Dashboard() {
             <IndicatorLedger
               indicators={dashboardData?.filteredIndicators || []}
               loading={loading}
+              readOnlyDemo={appConfig.readOnlyDemo}
               searchQuery={searchQuery}
               selectedSeverity={selectedSeverity}
               selectedStatus={selectedStatus}

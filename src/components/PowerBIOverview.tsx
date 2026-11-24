@@ -149,7 +149,7 @@ export default function PowerBIOverview({
         </div>
       )}
 
-      {/* 4-Column Executive KPI Strip (Single surface, hairline dividers, zero nested cards) */}
+      {/* 4-Column Executive KPI Strip */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 bg-[#111827] border border-slate-800 rounded-lg divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
         <div className="p-5">
           <p className="text-xs text-slate-400 font-medium">Consolidated Indicators</p>
@@ -157,60 +157,62 @@ export default function PowerBIOverview({
             {kpis.totalIndicators}
           </p>
           <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
-            {kpis.deduplicationRate}% duplicate noise removed across {kpis.pulseCount} pulses
+            {kpis.liveCount} live · {kpis.sampleCount} sample ·{' '}
+            {kpis.lastSyncAt ? `${kpis.deduplicationRate}% deduped` : 'no live sync yet'}
           </p>
         </div>
 
         <div className="p-5">
-          <p className="text-xs text-slate-400 font-medium">Recurring Attack Patterns</p>
+          <p className="text-xs text-slate-400 font-medium">Recurring Patterns</p>
           <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-50 font-mono tabular-nums">
             {kpis.recurringPatterns}
           </p>
           <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
-            Mean {kpis.meanRecurrence} sightings · Std Dev {kpis.stdRecurrence}
+            Median {kpis.medianRecurrence} sightings · MAD {kpis.madRecurrence}
           </p>
         </div>
 
         <div className="p-5">
-          <p className="text-xs text-slate-400 font-medium">Statistical Anomaly Spikes</p>
+          <p className="text-xs text-slate-400 font-medium">High-Recurrence Outliers</p>
           <p className="mt-2 text-3xl font-semibold tracking-tight text-amber-400 font-mono tabular-nums">
-            {kpis.anomalySpikes}
+            {kpis.highRecurrenceOutliers}
           </p>
           <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
-            Threshold Z ≥ 1.5σ · Peak Z = {kpis.maxZScore.toFixed(2)}σ
+            Robust Z ≥ 1.5σ · Peak {kpis.maxRobustZ.toFixed(2)}σ
           </p>
         </div>
 
         <div className="p-5">
-          <p className="text-xs text-slate-400 font-medium">Unmitigated Critical Threats</p>
+          <p className="text-xs text-slate-400 font-medium">Unmitigated Critical</p>
           <p className="mt-2 text-3xl font-semibold tracking-tight text-red-400 font-mono tabular-nums">
             {kpis.activeCritical}
           </p>
           <p className="mt-1.5 text-xs text-slate-400 tabular-nums">
-            Last sync {new Date(kpis.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {kpis.lastSyncAt
+              ? `Last sync ${new Date(kpis.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+              : 'Showing sample dataset'}
           </p>
         </div>
       </section>
 
       {/* Primary Visualization Row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Ingestion & Consolidation Volume Timeline */}
         <div className="lg:col-span-7 bg-[#111827] border border-slate-800 rounded-lg p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
             <div>
               <h2 className="text-base font-semibold text-slate-100">
-                Ingestion vs. Consolidated Sightings
+                Distinct Sightings & Sync Volume
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                7-day raw OSINT collection compared with Pandas deduplicated volume
+                7-day timeline derived directly from distinct pulse sightings and executed pipeline syncs
               </p>
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-400">
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-slate-500 inline-block" /> Raw Ingested
+                <span className="w-2.5 h-0.5 bg-blue-500 inline-block" /> Distinct Sightings
               </span>
               <span className="inline-flex items-center gap-1.5">
-                <span className="w-2.5 h-0.5 bg-blue-500 inline-block" /> Cleaned Sightings
+                <span className="w-2.5 h-0.5 bg-slate-500 inline-block" /> Sync Raw Count
               </span>
             </div>
           </div>
@@ -219,7 +221,7 @@ export default function PowerBIOverview({
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={timeline} margin={{ top: 8, right: 12, left: -16, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="cleanedGrad" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id="sightingsGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.28} />
                     <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                   </linearGradient>
@@ -237,6 +239,7 @@ export default function PowerBIOverview({
                   fontSize={11}
                   tickLine={false}
                   axisLine={false}
+                  allowDecimals={false}
                 />
                 <Tooltip
                   contentStyle={{
@@ -249,8 +252,8 @@ export default function PowerBIOverview({
                 />
                 <Area
                   type="monotone"
-                  dataKey="rawIngested"
-                  name="Raw Ingested"
+                  dataKey="syncRawCount"
+                  name="Sync Raw Count"
                   stroke="#64748B"
                   strokeWidth={1.5}
                   strokeDasharray="4 4"
@@ -258,18 +261,17 @@ export default function PowerBIOverview({
                 />
                 <Area
                   type="monotone"
-                  dataKey="cleanedStored"
-                  name="Cleaned Sightings"
+                  dataKey="distinctSightings"
+                  name="Distinct Sightings"
                   stroke="#3B82F6"
                   strokeWidth={2}
-                  fill="url(#cleanedGrad)"
+                  fill="url(#sightingsGrad)"
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Interactive Cross-Filter Chart: Recurring Attack Patterns */}
         <div className="lg:col-span-5 bg-[#111827] border border-slate-800 rounded-lg p-5 flex flex-col">
           <div className="mb-5">
             <h2 className="text-base font-semibold text-slate-100">
@@ -300,7 +302,7 @@ export default function PowerBIOverview({
                   margin={{ top: 4, right: 20, left: 8, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" horizontal={false} />
-                  <XAxis type="number" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
+                  <XAxis type="number" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                   <YAxis
                     type="category"
                     dataKey="name"
@@ -348,9 +350,8 @@ export default function PowerBIOverview({
         </div>
       </section>
 
-      {/* Secondary Row: IOC Type Slice + MITRE ATT&CK Tactics + Top Recurring Patterns */}
+      {/* Secondary Row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* IOC Type & MITRE ATT&CK Breakdown */}
         <div className="lg:col-span-4 bg-[#111827] border border-slate-800 rounded-lg divide-y divide-slate-800">
           <div className="p-5">
             <h3 className="text-sm font-semibold text-slate-100">Indicator Type Breakdown</h3>
@@ -401,7 +402,6 @@ export default function PowerBIOverview({
           </div>
         </div>
 
-        {/* High-Density Recurring Attack Patterns Table */}
         <div className="lg:col-span-8 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden flex flex-col">
           <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between gap-4">
             <div>
@@ -409,7 +409,7 @@ export default function PowerBIOverview({
                 Top Recurring Threat Indicators
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Ranked by NumPy recurrence Z-score across consolidated OSINT and web sources
+                Ranked by Median/MAD robust Z-score across distinct pulse sightings
               </p>
             </div>
             <span className="text-xs font-mono tabular-nums text-slate-400 whitespace-nowrap">
@@ -434,11 +434,11 @@ export default function PowerBIOverview({
                 <thead>
                   <tr className="border-b border-slate-800 text-xs font-medium text-slate-400">
                     <th className="py-3 px-4">Indicator</th>
-                    <th className="py-3 px-3">Type</th>
+                    <th className="py-3 px-3">Origin</th>
                     <th className="py-3 px-3">Pattern / Tactic</th>
                     <th className="py-3 px-3">Severity</th>
                     <th className="py-3 px-3 text-right">Sightings</th>
-                    <th className="py-3 px-3 text-right">Z-Score</th>
+                    <th className="py-3 px-3 text-right">Robust Z</th>
                     <th className="py-3 px-4 text-right">Status</th>
                   </tr>
                 </thead>
@@ -449,14 +449,17 @@ export default function PowerBIOverview({
                       onClick={() => onInspectIndicator(row)}
                       className="hover:bg-slate-800/40 cursor-pointer transition-colors"
                     >
-                      <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[230px] truncate">
+                      <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[220px] truncate">
                         <span className="inline-flex items-center gap-1.5">
                           <span className="truncate">{row.indicator}</span>
                           <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 font-mono text-slate-400 whitespace-nowrap">
-                        {row.type}
+                      <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
+                        {row.type} <span className="text-slate-600">·</span>{' '}
+                        <span className={row.isSample ? 'text-slate-400' : 'text-blue-400'}>
+                          {row.isSample ? 'Sample' : 'Live'}
+                        </span>
                       </td>
                       <td className="py-2.5 px-3 text-slate-300 whitespace-nowrap">
                         {row.category} <span className="text-slate-600">·</span>{' '}

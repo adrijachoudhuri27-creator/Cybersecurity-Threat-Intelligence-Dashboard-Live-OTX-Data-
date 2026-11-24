@@ -70,6 +70,7 @@ export default function StreamlitExplorer({
       'confidenceScore',
       'mitreTactic',
       'status',
+      'isSample',
     ];
     const rows = data.filteredIndicators.map((row) =>
       [
@@ -83,6 +84,7 @@ export default function StreamlitExplorer({
         row.confidenceScore,
         row.mitreTactic,
         row.status,
+        row.isSample,
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(',')
@@ -98,12 +100,11 @@ export default function StreamlitExplorer({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-      {/* Streamlit-style Analytical Parameter Sidebar */}
       <aside className="lg:col-span-3 bg-[#111827] border border-slate-800 rounded-lg p-5 space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div>
             <h2 className="text-sm font-semibold text-slate-100">Analysis Parameters</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Pandas & NumPy live slice</p>
+            <p className="text-xs text-slate-400 mt-0.5">Pandas & Robust MAD slice</p>
           </div>
           <button
             type="button"
@@ -115,7 +116,6 @@ export default function StreamlitExplorer({
           </button>
         </div>
 
-        {/* Time Horizon */}
         <div className="space-y-2">
           <label className="block text-xs font-medium text-slate-300">Collection Window</label>
           <div className="grid grid-cols-2 gap-1.5">
@@ -141,19 +141,18 @@ export default function StreamlitExplorer({
           </div>
         </div>
 
-        {/* Min Recurrence Slider */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <label htmlFor="min-recurrence" className="font-medium text-slate-300">
-              Minimum Recurrence
+              Minimum Distinct Sightings
             </label>
-            <span className="font-mono tabular-nums text-blue-400">{minRecurrence}+ sightings</span>
+            <span className="font-mono tabular-nums text-blue-400">{minRecurrence}+</span>
           </div>
           <input
             id="min-recurrence"
             type="range"
             min={1}
-            max={12}
+            max={10}
             step={1}
             value={minRecurrence}
             onChange={(e) => onChangeMinRecurrence(Number(e.target.value))}
@@ -161,16 +160,15 @@ export default function StreamlitExplorer({
           />
           <div className="flex justify-between text-[11px] font-mono text-slate-500 tabular-nums">
             <span>1</span>
-            <span>6</span>
-            <span>12</span>
+            <span>5</span>
+            <span>10</span>
           </div>
         </div>
 
-        {/* NumPy Z-Score Cutoff Slider */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
             <label htmlFor="z-cutoff" className="font-medium text-slate-300">
-              NumPy Z-Score Cutoff
+              Robust Z-Score Cutoff
             </label>
             <span className="font-mono tabular-nums text-amber-400">
               {zThreshold <= -5 ? 'All' : `≥ ${zThreshold.toFixed(1)}σ`}
@@ -196,7 +194,6 @@ export default function StreamlitExplorer({
           </div>
         </div>
 
-        {/* Source Filter */}
         <div className="space-y-2">
           <label htmlFor="source-select" className="block text-xs font-medium text-slate-300">
             OSINT / Scraper Feed
@@ -215,7 +212,6 @@ export default function StreamlitExplorer({
           </select>
         </div>
 
-        {/* IOC Type Filter */}
         <div className="space-y-2">
           <label className="block text-xs font-medium text-slate-300">Indicator Type</label>
           <div className="flex flex-wrap gap-1.5">
@@ -237,9 +233,7 @@ export default function StreamlitExplorer({
         </div>
       </aside>
 
-      {/* Main Streamlit Output Area */}
       <div className="lg:col-span-9 space-y-6">
-        {/* Statistical Distribution Strip */}
         <div className="grid grid-cols-2 sm:grid-cols-4 bg-[#111827] border border-slate-800 rounded-lg divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
           <div className="p-4">
             <p className="text-xs text-slate-400">Filtered Rows</p>
@@ -248,34 +242,33 @@ export default function StreamlitExplorer({
             </p>
           </div>
           <div className="p-4">
-            <p className="text-xs text-slate-400">Mean Recurrence (μ)</p>
+            <p className="text-xs text-slate-400">Median Sightings</p>
             <p className="mt-1 text-2xl font-semibold font-mono tabular-nums text-slate-50">
-              {data?.kpis.meanRecurrence.toFixed(2) ?? '0.00'}
+              {data?.kpis.medianRecurrence.toFixed(2) ?? '0.00'}
             </p>
           </div>
           <div className="p-4">
-            <p className="text-xs text-slate-400">Std Deviation (σ)</p>
+            <p className="text-xs text-slate-400">MAD Spread</p>
             <p className="mt-1 text-2xl font-semibold font-mono tabular-nums text-slate-50">
-              {data?.kpis.stdRecurrence.toFixed(2) ?? '0.00'}
+              {data?.kpis.madRecurrence.toFixed(2) ?? '0.00'}
             </p>
           </div>
           <div className="p-4">
-            <p className="text-xs text-slate-400">Max Outlier (Z)</p>
+            <p className="text-xs text-slate-400">Max Robust Z</p>
             <p className="mt-1 text-2xl font-semibold font-mono tabular-nums text-amber-400">
-              {data ? `+${data.kpis.maxZScore.toFixed(2)}σ` : '0.00σ'}
+              {data ? `+${data.kpis.maxRobustZ.toFixed(2)}σ` : '0.00σ'}
             </p>
           </div>
         </div>
 
-        {/* Scatter Plot: Recurrence vs NumPy Z-Score + Country Hotspots */}
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
           <div className="xl:col-span-7 bg-[#111827] border border-slate-800 rounded-lg p-5">
             <div className="mb-4">
               <h3 className="text-base font-semibold text-slate-100">
-                Recurring Pattern Outlier Matrix
+                High-Recurrence Outlier Matrix
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                NumPy Z-score plotted against cross-feed recurrence (dashed line at 1.5σ anomaly threshold)
+                Median/MAD robust Z-score plotted against distinct sightings (threshold line at 1.5σ)
               </p>
             </div>
 
@@ -300,15 +293,16 @@ export default function StreamlitExplorer({
                     <XAxis
                       type="number"
                       dataKey="recurrence"
-                      name="Recurrence"
+                      name="Distinct Sightings"
                       stroke="#94A3B8"
                       fontSize={11}
                       tickLine={false}
+                      allowDecimals={false}
                     />
                     <YAxis
                       type="number"
                       dataKey="zScore"
-                      name="Z-Score"
+                      name="Robust Z-Score"
                       stroke="#94A3B8"
                       fontSize={11}
                       tickLine={false}
@@ -324,20 +318,16 @@ export default function StreamlitExplorer({
                           <div className="bg-[#0F172A] border border-slate-700 rounded-lg p-3 text-xs space-y-1 shadow-lg">
                             <p className="font-mono font-semibold text-slate-100">{pt.indicator}</p>
                             <p className="text-slate-400">
-                              {pt.type} · {pt.category}
+                              {pt.type} · {pt.category} · {pt.isSample ? 'Sample' : 'Live'}
                             </p>
                             <p className="font-mono tabular-nums text-blue-400">
-                              Recurrence: {pt.recurrence} · Z-Score: {pt.zScore}σ
+                              Sightings: {pt.recurrence} · Robust Z: {pt.zScore}σ
                             </p>
                           </div>
                         );
                       }}
                     />
-                    <Scatter
-                      data={data.scatterPoints}
-                      fill="#3B82F6"
-                      fillOpacity={0.85}
-                    />
+                    <Scatter data={data.scatterPoints} fill="#3B82F6" fillOpacity={0.85} />
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
@@ -358,7 +348,7 @@ export default function StreamlitExplorer({
                 <BarChart data={data?.byCountry || []} margin={{ top: 8, right: 12, left: -18, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" vertical={false} />
                   <XAxis dataKey="name" stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#94A3B8" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
                   <Tooltip
                     contentStyle={{
                       backgroundColor: '#0F172A',
@@ -375,7 +365,6 @@ export default function StreamlitExplorer({
           </div>
         </div>
 
-        {/* Pandas DataFrame Output Preview */}
         <div className="bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -383,7 +372,7 @@ export default function StreamlitExplorer({
                 Cleaned DataFrame Preview
               </h3>
               <p className="text-xs text-slate-400">
-                Normalized Pandas schema ready for downstream BI ingestion
+                Normalized Pandas schema with sample vs. live provenance
               </p>
             </div>
             <button
@@ -403,9 +392,10 @@ export default function StreamlitExplorer({
                 <tr>
                   <th className="py-2.5 px-4">normalized_indicator</th>
                   <th className="py-2.5 px-3">type</th>
+                  <th className="py-2.5 px-3">origin</th>
                   <th className="py-2.5 px-3">source</th>
-                  <th className="py-2.5 px-3 text-right">recurrence</th>
-                  <th className="py-2.5 px-3 text-right">z_score</th>
+                  <th className="py-2.5 px-3 text-right">sightings</th>
+                  <th className="py-2.5 px-3 text-right">robust_z</th>
                   <th className="py-2.5 px-4 text-right">confidence</th>
                 </tr>
               </thead>
@@ -416,10 +406,13 @@ export default function StreamlitExplorer({
                     onClick={() => onInspectIndicator(row)}
                     className="hover:bg-slate-800/40 cursor-pointer transition-colors"
                   >
-                    <td className="py-2 px-4 font-mono text-slate-100 max-w-[260px] truncate">
+                    <td className="py-2 px-4 font-mono text-slate-100 max-w-[240px] truncate">
                       {row.normalizedIndicator}
                     </td>
                     <td className="py-2 px-3 font-mono text-slate-400">{row.type}</td>
+                    <td className={`py-2 px-3 whitespace-nowrap ${row.isSample ? 'text-slate-400' : 'text-blue-400'}`}>
+                      {row.isSample ? 'Sample' : 'Live'}
+                    </td>
                     <td className="py-2 px-3 text-slate-300 whitespace-nowrap">{row.source}</td>
                     <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-200">
                       {row.recurrenceCount}
