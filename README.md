@@ -98,7 +98,5 @@ npm test
 # Type-check and build production bundle
 npm run lint
 npm run build
-
-<img width="1672" height="871" alt="image" src="https://github.com/user-attachments/assets/5002ec0c-61bb-4b18-b8a4-a36fd77e7459" />
-
 ```
+<img width="1672" height="871" alt="image" src="https://github.com/user-attachments/assets/aae4e20b-fa0b-4712-a687-406fc8005736" />
