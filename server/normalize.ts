@@ -19,7 +19,7 @@ RESERVED_IPV4_BLOCKLIST.addSubnet('224.0.0.0', 4, 'ipv4');     // Multicast
 RESERVED_IPV4_BLOCKLIST.addSubnet('240.0.0.0', 4, 'ipv4');     // Reserved / Broadcast
 
 export function isNonRoutableOrReservedIPv4(ip: string): boolean {
-  if (net.isIPv4(ip) === false) return true;
+  if (!net.isIPv4(ip)) return true;
   return RESERVED_IPV4_BLOCKLIST.check(ip, 'ipv4');
 }
 
@@ -130,11 +130,10 @@ export function classifyAndNormalizeToken(raw: string): NormalizedTokenResult {
           note: 'Dropped URL targeting reserved/private IPv4',
         };
       }
-      const cleanedUrl = parsed.toString();
       return {
         valid: true,
         type: 'URL',
-        normalized: cleanedUrl,
+        normalized: parsed.toString(),
         note: canonical !== trimmed ? 'Refanged hxxp/[.] URL & normalized host' : 'Validated HTTP/HTTPS IOC URL',
       };
     } catch {
@@ -205,7 +204,6 @@ export function computeRobustZScores(values: number[]): {
     };
   }
 
-  // Fallback when >50% of observations equal the median (MAD == 0): use Mean Absolute Deviation
   const meanAbsDev = absDevs.reduce((a, b) => a + b, 0) / values.length;
   if (meanAbsDev === 0) {
     return {
@@ -222,14 +220,31 @@ export function computeRobustZScores(values: number[]): {
   };
 }
 
+// OTX returns attack_ids either as strings ("T1566") or objects ({ id: "T1566", name: "Phishing", display_name: "..." })
+export function extractOtxAttackIds(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item) => {
+      if (typeof item === 'string') return item.trim();
+      if (item && typeof item === 'object') {
+        const obj = item as { id?: unknown; name?: unknown; display_name?: unknown };
+        const idVal = obj.id ?? obj.display_name ?? obj.name ?? '';
+        return String(idVal).trim();
+      }
+      return '';
+    })
+    .filter(Boolean);
+}
+
 const MITRE_PREFIX_MAP: Array<[RegExp, string, string]> = [
-  [/T1566|T1190|T1133|T1195/i, 'Initial Access', 'Cloud API Exploit'],
-  [/T1078|T1110|T1552|T1528/i, 'Credential Access', 'Credential Harvesting'],
-  [/T1059|T1204|T1203/i, 'Execution', 'Malware Distribution'],
-  [/T1071|T1095|T1105|T1572/i, 'Command & Control', 'C2 Infrastructure'],
-  [/T1486|T1490|T1485/i, 'Impact', 'Ransomware & Extortion'],
-  [/T1041|T1567|T1048/i, 'Exfiltration', 'Ransomware & Extortion'],
-  [/T1053|T1543|T1136/i, 'Persistence', 'Cloud API Exploit'],
+  [/\b(?:T1566|T1598)\b/i, 'Initial Access', 'Credential Harvesting'],
+  [/\b(?:T1190|T1133|T1195)\b/i, 'Initial Access', 'Cloud API Exploit'],
+  [/\b(?:T1078|T1110|T1552|T1528)\b/i, 'Credential Access', 'Credential Harvesting'],
+  [/\b(?:T1059|T1204|T1203)\b/i, 'Execution', 'Malware Distribution'],
+  [/\b(?:T1071|T1095|T1105|T1572)\b/i, 'Command & Control', 'C2 Infrastructure'],
+  [/\b(?:T1486|T1490|T1485)\b/i, 'Impact', 'Ransomware & Extortion'],
+  [/\b(?:T1041|T1567|T1048)\b/i, 'Exfiltration', 'Ransomware & Extortion'],
+  [/\b(?:T1053|T1543|T1136)\b/i, 'Persistence', 'Cloud API Exploit'],
 ];
 
 export function deriveOtxAttributes(pulse: {
@@ -251,33 +266,36 @@ export function deriveOtxAttributes(pulse: {
 
   let mitreTactic = 'Command & Control';
   let category = 'C2 Infrastructure';
+  let matchedTactic = false;
 
   for (const [pattern, tactic, cat] of MITRE_PREFIX_MAP) {
     if (pattern.test(attackStr)) {
       mitreTactic = tactic;
       category = cat;
+      matchedTactic = true;
       break;
     }
   }
 
-  if (mitreTactic === 'Command & Control') {
-    if (/ransom|lockbit|blackcat|extort/.test(combined)) {
+  if (!matchedTactic) {
+    if (/\b(?:ransomware|ransom|lockbit|blackcat|extortion)\b/i.test(combined)) {
       category = 'Ransomware & Extortion';
       mitreTactic = 'Impact';
-    } else if (/phish|cred|oauth|iam|sts|okta|stealer/.test(combined)) {
+    } else if (/\b(?:phish|phishing|credential|credentials|oauth|iam|sts|okta|infostealer|stealer)\b/i.test(combined)) {
       category = 'Credential Harvesting';
       mitreTactic = 'Credential Access';
-    } else if (/cve|exploit|rce|k8s|kubernetes|cloud|ingress|api/.test(combined)) {
+    } else if (/\b(?:cve|exploit|exploited|rce|k8s|kubernetes|cloud|ingress|api)\b/i.test(combined)) {
       category = 'Cloud API Exploit';
       mitreTactic = 'Initial Access';
-    } else if (/loader|dropper|trojan|malware|payload|botnet/.test(combined)) {
+    } else if (/\b(?:loader|dropper|trojan|malware|payload|botnet)\b/i.test(combined)) {
       category = 'Malware Distribution';
       mitreTactic = 'Execution';
     }
   }
 
   const hasAdversary = Boolean(pulse.adversary && pulse.adversary !== 'Unattributed');
-  const isCriticalKeyword = /ransom|zero-day|0day|apt|rce|exploit|active/.test(combined);
+  // Strict word-boundary checks; 'active' intentionally excluded from severity keywords
+  const isCriticalKeyword = /\b(?:ransomware|ransom|zero-day|0day|apt|rce|exploited|exploit)\b/i.test(combined);
   const severity: ThreatSeverity =
     isCriticalKeyword || (hasAdversary && (pulse.indicatorCount || 0) >= 8)
       ? 'Critical'
@@ -312,10 +330,10 @@ export function deriveKevAttributes(vuln: {
   mitreTactic: string;
 } {
   const isRansomware = String(vuln.knownRansomwareCampaignUse || '').toLowerCase() === 'known';
-  const text = `${vuln.vulnerabilityName || ''} ${vuln.shortDescription || ''}`.toLowerCase();
+  const text = `${vuln.vulnerabilityName || ''} ${vuln.shortDescription || ''}`;
 
-  const isAuthOrPriv = /authentication|credential|privilege|bypass|iam/.test(text);
-  const isExecution = /remote code execution|command injection|arbitrary code|rce/.test(text);
+  const isAuthOrPriv = /\b(?:authentication|credential|credentials|privilege|bypass|iam)\b/i.test(text);
+  const isExecution = /\b(?:remote code execution|command injection|arbitrary code|rce)\b/i.test(text);
 
   const mitreTactic = isRansomware
     ? 'Impact'
@@ -327,7 +345,7 @@ export function deriveKevAttributes(vuln: {
 
   const category = isRansomware
     ? 'Ransomware & Extortion'
-    : /vpn|firewall|cloud|api|gateway|citrix|ivanti|palo alto/.test(text)
+    : /\b(?:vpn|firewall|cloud|api|gateway|citrix|ivanti|palo alto)\b/i.test(text)
       ? 'Cloud API Exploit'
       : 'Supply Chain / CVE';
 
@@ -348,9 +366,9 @@ export function deriveFeodoAttributes(entry: {
   mitreTactic: string;
 } {
   const isOnline = String(entry.status || '').toLowerCase() === 'online';
-  const malware = String(entry.malware || '').toLowerCase();
+  const malware = String(entry.malware || '');
 
-  const category = /emotet|qakbot|pikabot|bumblebee/.test(malware)
+  const category = /\b(?:emotet|qakbot|pikabot|bumblebee)\b/i.test(malware)
     ? 'C2 Infrastructure'
     : 'Malware Distribution';
 

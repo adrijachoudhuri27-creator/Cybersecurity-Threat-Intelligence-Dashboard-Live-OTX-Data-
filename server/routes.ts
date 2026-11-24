@@ -107,6 +107,7 @@ export function createApiRouter() {
       severity: r.severity as ThreatSeverity,
       confidenceScore: Number(r.confidence_score),
       recurrenceCount: Number(r.recurrence_count),
+      daysObserved: Number(r.days_observed || 1),
       zScore: Number(r.z_score),
       mitreTactic: String(r.mitre_tactic),
       country: String(r.country),
@@ -203,7 +204,6 @@ export function createApiRouter() {
         .sort((a, b) => b.count - a.count);
     };
 
-    // Real 7-day timeline computed strictly from actual sightings & pipeline_runs (no 1.25x multipliers)
     const timelineMap = new Map<
       string,
       { distinctSightings: number; syncRawCount: number; syncCleanCount: number }
@@ -271,6 +271,7 @@ export function createApiRouter() {
         category: i.category,
         severity: i.severity,
         recurrence: i.recurrenceCount,
+        daysObserved: i.daysObserved,
         zScore: i.zScore,
         confidence: i.confidenceScore,
         source: i.source,
@@ -291,6 +292,7 @@ export function createApiRouter() {
           error: `All live feeds failed: ${result.feedErrors.join(' | ')}`,
           run: result.run,
           feedErrors: result.feedErrors,
+          feedCounts: result.feedCounts,
         });
         return;
       }
@@ -308,13 +310,13 @@ export function createApiRouter() {
       res.status(400).json({ error: 'rawText is required' });
       return;
     }
-    const sourceInput = String(req.body?.sourceLabel || 'Selenium Web Scraper').trim() as FeedSourceType;
+    const sourceInput = String(req.body?.sourceLabel || 'Manual Batch').trim() as FeedSourceType;
     const validSource: FeedSourceType =
       sourceInput === 'AlienVault OTX' ||
       sourceInput === 'CISA KEV' ||
       sourceInput === 'Abuse.ch Feodo'
         ? sourceInput
-        : 'Selenium Web Scraper';
+        : 'Manual Batch';
 
     const result = ingestCustomBatch(rawText, validSource);
     res.json(result);
@@ -349,6 +351,7 @@ export function createApiRouter() {
       'severity',
       'confidence_score',
       'recurrence_count',
+      'days_observed',
       'z_score',
       'mitre_tactic',
       'country',
@@ -368,7 +371,7 @@ export function createApiRouter() {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
-    const numericCols = new Set(['confidence_score', 'recurrence_count', 'z_score', 'is_sample']);
+    const numericCols = new Set(['confidence_score', 'recurrence_count', 'days_observed', 'z_score', 'is_sample']);
     const lines = [headers.join(',')];
     for (const row of rows) {
       lines.push(headers.map((h) => escapeCsv(row[h], numericCols.has(h))).join(','));

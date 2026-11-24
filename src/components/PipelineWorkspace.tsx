@@ -41,7 +41,7 @@ export default function PipelineWorkspace({
   onAfterIngest,
 }: PipelineWorkspaceProps) {
   const [rawText, setRawText] = React.useState('');
-  const [sourceLabel, setSourceLabel] = React.useState<FeedSourceType>('Selenium Web Scraper');
+  const [sourceLabel, setSourceLabel] = React.useState<FeedSourceType>('Manual Batch');
   const [ingesting, setIngesting] = React.useState(false);
   const [ingestResult, setIngestResult] = React.useState<CustomIngestResponse | null>(null);
   const [ingestError, setIngestError] = React.useState<string | null>(null);
@@ -83,20 +83,19 @@ export default function PipelineWorkspace({
 
   return (
     <div className="space-y-6">
-      {/* Architecture Stages Strip */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 bg-[#111827] border border-slate-800 rounded-lg divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
         <div className="p-5">
-          <p className="text-xs font-medium text-blue-400">01. Data Collection</p>
+          <p className="text-xs font-medium text-blue-400">01. Live Collection</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
-            AlienVault OTX & Selenium
+            REST API Threat Feeds
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            REST API pulse polling paired with headless Selenium extraction and date-sorted CISA KEV feeds.
+            Polls AlienVault OTX, date-sorted CISA KEV vulnerabilities, and online-sorted Abuse.ch Feodo C2 IPs.
           </p>
         </div>
 
         <div className="p-5">
-          <p className="text-xs font-medium text-blue-400">02. Consolidation & Cleaning</p>
+          <p className="text-xs font-medium text-blue-400">02. Normalization & Filtering</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
             net.BlockList & Sightings
           </h3>
@@ -106,36 +105,35 @@ export default function PipelineWorkspace({
         </div>
 
         <div className="p-5">
-          <p className="text-xs font-medium text-blue-400">03. Statistical Analysis</p>
+          <p className="text-xs font-medium text-blue-400">03. Statistical Scoring</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
             Median & MAD Robust Z
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            Computes robust Modified Z-scores resistant to skewed recurrence distributions to surface outliers.
+            Computes robust Modified Z-scores resistant to skewed recurrence distributions and tracks days observed.
           </p>
         </div>
 
         <div className="p-5">
-          <p className="text-xs font-medium text-blue-400">04. Threat Visibility</p>
+          <p className="text-xs font-medium text-blue-400">04. Analyst Visibility</p>
           <h3 className="mt-1 text-sm font-semibold text-slate-100">
-            Power BI & Streamlit
+            Triage & CSV Export
           </h3>
           <p className="mt-1.5 text-xs text-slate-400 leading-relaxed">
-            Publishes normalized CSV and interactive views with explicit live vs. sample provenance.
+            Persists triage status updates in SQLite and exports normalized CSV datasets for external BI tools.
           </p>
         </div>
       </section>
 
-      {/* Interactive Raw Ingestion & Cleaning Workbench */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-5 bg-[#111827] border border-slate-800 rounded-lg p-5 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-base font-semibold text-slate-100">
-                Raw Feed Consolidation Sandbox
+                Manual Batch Normalization Sandbox
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                Test port stripping, net.BlockList filtering, and distinct sighting merge rules
+                Pasted indicators are normalized and stored as Unclassified until triaged
               </p>
             </div>
             <button
@@ -149,7 +147,7 @@ export default function PipelineWorkspace({
 
           <div className="space-y-1.5">
             <label htmlFor="ingest-source" className="block text-xs font-medium text-slate-300">
-              Attribution Source
+              Batch Source Label
             </label>
             <select
               id="ingest-source"
@@ -157,7 +155,7 @@ export default function PipelineWorkspace({
               onChange={(e) => setSourceLabel(e.target.value as FeedSourceType)}
               className="w-full bg-[#0B1120] border border-slate-700 rounded-md px-3 py-2 text-xs text-slate-100 outline-none focus:border-blue-500"
             >
-              <option value="Selenium Web Scraper">Selenium Web Scraper</option>
+              <option value="Manual Batch">Manual Batch</option>
               <option value="AlienVault OTX">AlienVault OTX</option>
               <option value="CISA KEV">CISA KEV</option>
               <option value="Abuse.ch Feodo">Abuse.ch Feodo</option>
@@ -166,7 +164,7 @@ export default function PipelineWorkspace({
 
           <div className="space-y-1.5">
             <label htmlFor="raw-batch-input" className="block text-xs font-medium text-slate-300">
-              Uncleaned OSINT / Scraped Indicators
+              Raw Indicators
             </label>
             <textarea
               id="raw-batch-input"
@@ -187,7 +185,7 @@ export default function PipelineWorkspace({
               className="inline-flex items-center gap-2 px-4 py-2 text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-lg transition-colors whitespace-nowrap"
             >
               <Play className="w-3.5 h-3.5" />
-              {readOnlyDemo ? 'Read-Only Demo' : ingesting ? 'Consolidating...' : 'Run Cleaning Pipeline'}
+              {readOnlyDemo ? 'Read-Only Demo' : ingesting ? 'Normalizing...' : 'Normalize Batch'}
             </button>
 
             <button
@@ -227,9 +225,9 @@ export default function PipelineWorkspace({
 
           {!ingestResult ? (
             <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
-              <p className="text-sm text-slate-300">No custom cleaning batch executed yet.</p>
+              <p className="text-sm text-slate-300">No manual batch executed yet.</p>
               <p className="text-xs text-slate-500 mt-1 max-w-md">
-                Click Load Sample Batch and Run Cleaning Pipeline to verify port stripping, CGNAT/documentation IP filtering, and sighting deduplication.
+                Click Load Sample Batch and Normalize Batch to verify port stripping, CGNAT/documentation IP filtering, and sighting deduplication.
               </p>
             </div>
           ) : (
@@ -273,7 +271,6 @@ export default function PipelineWorkspace({
         </div>
       </section>
 
-      {/* Pipeline Run Execution History + Collected Pulses */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800">
@@ -286,7 +283,7 @@ export default function PipelineWorkspace({
             <div className="p-10 text-center">
               <p className="text-sm text-slate-300">No live pipeline runs recorded yet.</p>
               <p className="text-xs text-slate-500 mt-1">
-                Trigger Sync Live Feeds or Run Cleaning Pipeline to record real execution metrics.
+                Trigger Sync Live Feeds or Normalize Batch to record real execution metrics.
               </p>
             </div>
           ) : (
@@ -355,9 +352,9 @@ export default function PipelineWorkspace({
 
         <div className="lg:col-span-5 bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800">
-            <h3 className="text-sm font-semibold text-slate-100">Collected Pulses & Advisories</h3>
+            <h3 className="text-sm font-semibold text-slate-100">Collected Pulses & Feeds</h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              Provenance tagged explicitly as Live REST or Sample Fixture
+              Provenance tagged explicitly as Live Feed or Sample Fixture
             </p>
           </div>
           <div className="divide-y divide-slate-800/80 max-h-[360px] overflow-y-auto thin-scrollbar">
@@ -388,16 +385,15 @@ export default function PipelineWorkspace({
         </div>
       </section>
 
-      {/* Python Reference Architecture Inspector */}
       {pythonModules.length > 0 && (
         <section className="bg-[#111827] border border-slate-800 rounded-lg overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-800 flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-semibold text-slate-100">
-                Python ETL & Streamlit Reference Modules
+                Optional Standalone Python Templates
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Reference Python scripts for OTX REST collection, Selenium scraping, Pandas/NumPy robust Z-scoring, and Streamlit
+                Read-only reference templates for offline Python workflows (this live web app executes in Node/TypeScript)
               </p>
             </div>
             <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#0B1120] border border-slate-800 rounded-lg">

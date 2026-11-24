@@ -31,9 +31,9 @@ interface PowerBIOverviewProps {
 const SOURCE_OPTIONS: Array<'' | FeedSourceType> = [
   '',
   'AlienVault OTX',
-  'Selenium Web Scraper',
   'CISA KEV',
   'Abuse.ch Feodo',
+  'Manual Batch',
 ];
 
 const SEVERITY_TEXT_CLASS: Record<string, string> = {
@@ -41,6 +41,7 @@ const SEVERITY_TEXT_CLASS: Record<string, string> = {
   High: 'text-amber-400',
   Medium: 'text-sky-400',
   Low: 'text-slate-400',
+  Unclassified: 'text-slate-400',
 };
 
 const STATUS_TEXT_CLASS: Record<string, string> = {
@@ -90,7 +91,6 @@ export default function PowerBIOverview({
 
   return (
     <div className="space-y-6">
-      {/* Power BI Interactive Slicer Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs font-medium text-slate-400 mr-1">Feed Slice:</span>
@@ -132,12 +132,11 @@ export default function PowerBIOverview({
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-200 bg-[#111827] hover:bg-slate-800 border border-slate-700 rounded-lg transition-colors whitespace-nowrap shrink-0"
           >
             <Download className="w-3.5 h-3.5" />
-            Export Power BI CSV
+            Export Normalized CSV
           </button>
         </div>
       </div>
 
-      {/* Active Cross-Filter Summary Line */}
       {hasActiveFilter && (
         <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
           <span className="text-slate-300 font-medium">Active cross-filter:</span>
@@ -149,7 +148,6 @@ export default function PowerBIOverview({
         </div>
       )}
 
-      {/* 4-Column Executive KPI Strip */}
       <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 bg-[#111827] border border-slate-800 rounded-lg divide-y sm:divide-y-0 sm:divide-x divide-slate-800">
         <div className="p-5">
           <p className="text-xs text-slate-400 font-medium">Consolidated Indicators</p>
@@ -195,7 +193,6 @@ export default function PowerBIOverview({
         </div>
       </section>
 
-      {/* Primary Visualization Row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 bg-[#111827] border border-slate-800 rounded-lg p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-5">
@@ -204,7 +201,7 @@ export default function PowerBIOverview({
                 Distinct Sightings & Sync Volume
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                7-day timeline derived directly from distinct pulse sightings and executed pipeline syncs
+                7-day timeline computed directly from ingested sightings and pipeline runs
               </p>
             </div>
             <div className="flex items-center gap-4 text-xs text-slate-400">
@@ -350,7 +347,6 @@ export default function PowerBIOverview({
         </div>
       </section>
 
-      {/* Secondary Row */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-4 bg-[#111827] border border-slate-800 rounded-lg divide-y divide-slate-800">
           <div className="p-5">
@@ -438,6 +434,7 @@ export default function PowerBIOverview({
                     <th className="py-3 px-3">Pattern / Tactic</th>
                     <th className="py-3 px-3">Severity</th>
                     <th className="py-3 px-3 text-right">Sightings</th>
+                    <th className="py-3 px-3 text-right">Days</th>
                     <th className="py-3 px-3 text-right">Robust Z</th>
                     <th className="py-3 px-4 text-right">Status</th>
                   </tr>
@@ -449,7 +446,7 @@ export default function PowerBIOverview({
                       onClick={() => onInspectIndicator(row)}
                       className="hover:bg-slate-800/40 cursor-pointer transition-colors"
                     >
-                      <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[220px] truncate">
+                      <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[200px] truncate">
                         <span className="inline-flex items-center gap-1.5">
                           <span className="truncate">{row.indicator}</span>
                           <ArrowUpRight className="w-3.5 h-3.5 text-slate-500 shrink-0" />
@@ -470,6 +467,9 @@ export default function PowerBIOverview({
                       </td>
                       <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-200">
                         {row.recurrenceCount}
+                      </td>
+                      <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
+                        {row.daysObserved}d
                       </td>
                       <td
                         className={`py-2.5 px-3 text-right font-mono tabular-nums font-medium ${

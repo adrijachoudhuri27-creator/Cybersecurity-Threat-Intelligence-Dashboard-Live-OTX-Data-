@@ -21,17 +21,17 @@ import StreamlitExplorer from './StreamlitExplorer';
 import PipelineWorkspace from './PipelineWorkspace';
 import IndicatorLedger from './IndicatorLedger';
 
-type WorkspaceTab = 'powerbi' | 'streamlit' | 'pipeline' | 'ledger';
+type WorkspaceTab = 'overview' | 'explorer' | 'pipeline' | 'ledger';
 
 const NAV_ITEMS: Array<{ id: WorkspaceTab; label: string; icon: React.ReactNode }> = [
-  { id: 'powerbi', label: 'Power BI Overview', icon: <BarChart3 className="w-4 h-4" /> },
-  { id: 'streamlit', label: 'Streamlit Explorer', icon: <SlidersHorizontal className="w-4 h-4" /> },
-  { id: 'pipeline', label: 'OSINT & Cleaning', icon: <Database className="w-4 h-4" /> },
+  { id: 'overview', label: 'Executive Overview', icon: <BarChart3 className="w-4 h-4" /> },
+  { id: 'explorer', label: 'Parameter Explorer', icon: <SlidersHorizontal className="w-4 h-4" /> },
+  { id: 'pipeline', label: 'OSINT & Normalization', icon: <Database className="w-4 h-4" /> },
   { id: 'ledger', label: 'IOC Ledger', icon: <Table2 className="w-4 h-4" /> },
 ];
 
 export default function Dashboard() {
-  const [activeTab, setActiveTab] = React.useState<WorkspaceTab>('powerbi');
+  const [activeTab, setActiveTab] = React.useState<WorkspaceTab>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const [selectedCategory, setSelectedCategory] = React.useState('');
@@ -191,7 +191,7 @@ export default function Dashboard() {
     setActiveTab('ledger');
   };
 
-  const activeNavLabel = NAV_ITEMS.find((n) => n.id === activeTab)?.label || 'Overview';
+  const activeNavLabel = NAV_ITEMS.find((n) => n.id === activeTab)?.label || 'Executive Overview';
 
   return (
     <div className="min-h-screen bg-[#0B1120] text-[#F8FAFC] flex">
@@ -227,9 +227,9 @@ export default function Dashboard() {
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-1.5 text-xs text-slate-400">
-          <p className="font-medium text-slate-300">Cloud Threat Framework</p>
+          <p className="font-medium text-slate-300">OSINT Workbench</p>
           <p className="leading-relaxed">
-            AlienVault OTX · Selenium · Pandas · NumPy · Power BI · Streamlit
+            AlienVault OTX · CISA KEV · Abuse.ch Feodo · SQLite · CSV Export
           </p>
         </div>
       </aside>
@@ -312,7 +312,8 @@ export default function Dashboard() {
         <main className="flex-1 max-w-[1440px] w-full mx-auto p-4 lg:p-8 space-y-6">
           {dashboardData && dashboardData.kpis.liveCount === 0 && (
             <div className="px-4 py-3 bg-[#111827] border border-slate-800 rounded-lg text-xs text-slate-300">
-              Showing labeled sample fixtures only. Click <span className="font-medium text-slate-100">Sync Live Feeds</span> to ingest live AlienVault OTX, CISA KEV, and Abuse.ch Feodo threat data.
+              Showing labeled <span className="font-medium text-slate-100">Sample</span> fixtures only. Click{' '}
+              <span className="font-medium text-slate-100">Sync Live Feeds</span> to ingest live AlienVault OTX, CISA KEV, and Abuse.ch Feodo threat data.
             </div>
           )}
 
@@ -343,7 +344,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {activeTab === 'powerbi' && (
+          {activeTab === 'overview' && (
             <PowerBIOverview
               data={dashboardData}
               loading={loading}
@@ -359,7 +360,7 @@ export default function Dashboard() {
             />
           )}
 
-          {activeTab === 'streamlit' && (
+          {activeTab === 'explorer' && (
             <StreamlitExplorer
               data={dashboardData}
               loading={loading}

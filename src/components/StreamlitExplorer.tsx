@@ -36,9 +36,9 @@ const IOC_TYPES: Array<'' | IndicatorType> = ['', 'IPv4', 'Domain', 'URL', 'SHA2
 const SOURCES: Array<'' | FeedSourceType> = [
   '',
   'AlienVault OTX',
-  'Selenium Web Scraper',
   'CISA KEV',
   'Abuse.ch Feodo',
+  'Manual Batch',
 ];
 
 export default function StreamlitExplorer({
@@ -66,6 +66,7 @@ export default function StreamlitExplorer({
       'category',
       'severity',
       'recurrenceCount',
+      'daysObserved',
       'zScore',
       'confidenceScore',
       'mitreTactic',
@@ -80,6 +81,7 @@ export default function StreamlitExplorer({
         row.category,
         row.severity,
         row.recurrenceCount,
+        row.daysObserved,
         row.zScore,
         row.confidenceScore,
         row.mitreTactic,
@@ -93,7 +95,7 @@ export default function StreamlitExplorer({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'streamlit_filtered_dataframe.csv';
+    a.download = 'filtered_indicators.csv';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -104,7 +106,7 @@ export default function StreamlitExplorer({
         <div className="flex items-center justify-between pb-3 border-b border-slate-800">
           <div>
             <h2 className="text-sm font-semibold text-slate-100">Analysis Parameters</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Pandas & Robust MAD slice</p>
+            <p className="text-xs text-slate-400 mt-0.5">Robust Median & MAD slice</p>
           </div>
           <button
             type="button"
@@ -196,7 +198,7 @@ export default function StreamlitExplorer({
 
         <div className="space-y-2">
           <label htmlFor="source-select" className="block text-xs font-medium text-slate-300">
-            OSINT / Scraper Feed
+            OSINT / Batch Source
           </label>
           <select
             id="source-select"
@@ -321,7 +323,7 @@ export default function StreamlitExplorer({
                               {pt.type} · {pt.category} · {pt.isSample ? 'Sample' : 'Live'}
                             </p>
                             <p className="font-mono tabular-nums text-blue-400">
-                              Sightings: {pt.recurrence} · Robust Z: {pt.zScore}σ
+                              Sightings: {pt.recurrence} · Days: {pt.daysObserved} · Robust Z: {pt.zScore}σ
                             </p>
                           </div>
                         );
@@ -369,10 +371,10 @@ export default function StreamlitExplorer({
           <div className="px-5 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-100">
-                Cleaned DataFrame Preview
+                Consolidated Indicator Table
               </h3>
               <p className="text-xs text-slate-400">
-                Normalized Pandas schema with sample vs. live provenance
+                Normalized SQLite schema with sample vs. live provenance
               </p>
             </div>
             <button
@@ -395,6 +397,7 @@ export default function StreamlitExplorer({
                   <th className="py-2.5 px-3">origin</th>
                   <th className="py-2.5 px-3">source</th>
                   <th className="py-2.5 px-3 text-right">sightings</th>
+                  <th className="py-2.5 px-3 text-right">days</th>
                   <th className="py-2.5 px-3 text-right">robust_z</th>
                   <th className="py-2.5 px-4 text-right">confidence</th>
                 </tr>
@@ -417,6 +420,9 @@ export default function StreamlitExplorer({
                     <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-200">
                       {row.recurrenceCount}
                     </td>
+                    <td className="py-2 px-3 text-right font-mono tabular-nums text-slate-400">
+                      {row.daysObserved}d
+                    </td>
                     <td
                       className={`py-2 px-3 text-right font-mono tabular-nums ${
                         row.zScore >= 1.5 ? 'text-amber-400 font-medium' : 'text-slate-300'
@@ -425,7 +431,7 @@ export default function StreamlitExplorer({
                       {row.zScore.toFixed(2)}
                     </td>
                     <td className="py-2 px-4 text-right font-mono tabular-nums text-slate-300">
-                      {row.confidenceScore}%
+                      {row.confidenceScore > 0 ? `${row.confidenceScore}%` : '—'}
                     </td>
                   </tr>
                 ))}

@@ -19,7 +19,7 @@ interface IndicatorLedgerProps {
   onUpdateStatus: (id: string, status: ThreatStatus) => Promise<void>;
 }
 
-const SEVERITIES: Array<'' | ThreatSeverity> = ['', 'Critical', 'High', 'Medium', 'Low'];
+const SEVERITIES: Array<'' | ThreatSeverity> = ['', 'Critical', 'High', 'Medium', 'Low', 'Unclassified'];
 const STATUSES: Array<'' | ThreatStatus> = ['', 'Active', 'Investigating', 'Mitigated'];
 
 const SEVERITY_COLOR: Record<ThreatSeverity, string> = {
@@ -27,6 +27,7 @@ const SEVERITY_COLOR: Record<ThreatSeverity, string> = {
   High: 'text-amber-400',
   Medium: 'text-sky-400',
   Low: 'text-slate-400',
+  Unclassified: 'text-slate-400',
 };
 
 const STATUS_COLOR: Record<ThreatStatus, string> = {
@@ -82,7 +83,7 @@ export default function IndicatorLedger({
             />
           </div>
 
-          <div className="inline-flex items-center gap-1 p-1 bg-[#111827] border border-slate-800 rounded-lg">
+          <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-[#111827] border border-slate-800 rounded-lg">
             {SEVERITIES.map((sev) => (
               <button
                 key={sev || 'all'}
@@ -162,6 +163,7 @@ export default function IndicatorLedger({
                     <th className="py-3 px-3">Category</th>
                     <th className="py-3 px-3">Severity</th>
                     <th className="py-3 px-3 text-right">Sightings</th>
+                    <th className="py-3 px-3 text-right">Days</th>
                     <th className="py-3 px-3 text-right">Robust Z</th>
                     <th className="py-3 px-4 text-right">Status</th>
                   </tr>
@@ -177,7 +179,7 @@ export default function IndicatorLedger({
                           isSelected ? 'bg-blue-600/10' : 'hover:bg-slate-800/40'
                         }`}
                       >
-                        <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[220px] truncate">
+                        <td className="py-2.5 px-4 font-mono text-slate-100 max-w-[210px] truncate">
                           {item.normalizedIndicator}
                         </td>
                         <td className="py-2.5 px-3 text-slate-400 whitespace-nowrap">
@@ -198,6 +200,9 @@ export default function IndicatorLedger({
                         </td>
                         <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-200">
                           {item.recurrenceCount}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono tabular-nums text-slate-400">
+                          {item.daysObserved}d
                         </td>
                         <td
                           className={`py-2.5 px-3 text-right font-mono tabular-nums ${
@@ -256,11 +261,23 @@ export default function IndicatorLedger({
                 </span>
               </div>
               <div className="flex justify-between gap-2">
+                <span className="text-slate-400">Days Observed</span>
+                <span className="font-mono tabular-nums text-slate-100">
+                  {selectedIndicator.daysObserved} days
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
                 <span className="text-slate-400">Robust Z-Score (MAD)</span>
                 <span className="font-mono tabular-nums text-amber-400">
                   {selectedIndicator.zScore >= 0
                     ? `+${selectedIndicator.zScore.toFixed(2)}`
                     : selectedIndicator.zScore.toFixed(2)}σ
+                </span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span className="text-slate-400">Confidence</span>
+                <span className="font-mono tabular-nums text-slate-200">
+                  {selectedIndicator.confidenceScore > 0 ? `${selectedIndicator.confidenceScore}%` : 'Unclassified'}
                 </span>
               </div>
               <div className="flex justify-between gap-2">

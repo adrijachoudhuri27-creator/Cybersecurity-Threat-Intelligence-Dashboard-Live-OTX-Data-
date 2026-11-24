@@ -6,6 +6,7 @@ import {
   deriveFeodoAttributes,
   deriveKevAttributes,
   deriveOtxAttributes,
+  extractOtxAttackIds,
 } from '../server/normalize.ts';
 
 describe('classifyAndNormalizeToken', () => {
@@ -92,19 +93,46 @@ describe('computeRobustZScores', () => {
   });
 });
 
-describe('Feed-derived threat attribute helpers', () => {
-  it('derives OTX category, severity, and MITRE tactic from pulse metadata', () => {
-    const res = deriveOtxAttributes({
-      tags: ['ransomware', 'aws'],
-      attackIds: ['T1486'],
+describe('OTX attack_ids & word-boundary attribute derivation', () => {
+  it('extracts OTX attack_ids from both objects and strings and maps T1566 to Credential Harvesting', () => {
+    const ids = extractOtxAttackIds([
+      { id: 'T1566', name: 'Phishing', display_name: 'T1566 - Phishing' },
+      'T1078',
+    ]);
+    assert.deepEqual(ids, ['T1566', 'T1078']);
+
+    const derived = deriveOtxAttributes({
+      tags: ['phishing'],
+      attackIds: ids,
+      adversary: 'Unattributed',
+    });
+    assert.equal(derived.mitreTactic, 'Initial Access');
+    assert.equal(derived.category, 'Credential Harvesting');
+  });
+
+  it('does not trigger false Critical severity or false categories on substring collisions', () => {
+    const benignWords = deriveOtxAttributes({
+      tags: ['adapt', 'source code', 'inactive', 'diamond', 'tests'],
+      attackIds: [],
+      adversary: 'Unattributed',
+      indicatorCount: 2,
+    });
+    assert.notEqual(benignWords.severity, 'Critical');
+    assert.equal(benignWords.category, 'C2 Infrastructure');
+  });
+
+  it('triggers Critical severity on whole-word exploit/ransomware/apt terms', () => {
+    const critical = deriveOtxAttributes({
+      tags: ['ransomware', 'apt'],
+      attackIds: [{ id: 'T1486', name: 'Data Encrypted for Impact' }].map((a) => a.id),
       adversary: 'Scattered Spider',
       tlp: 'AMBER',
       indicatorCount: 12,
     });
-    assert.equal(res.mitreTactic, 'Impact');
-    assert.equal(res.category, 'Ransomware & Extortion');
-    assert.equal(res.severity, 'Critical');
-    assert.ok(res.confidence >= 90);
+    assert.equal(critical.mitreTactic, 'Impact');
+    assert.equal(critical.category, 'Ransomware & Extortion');
+    assert.equal(critical.severity, 'Critical');
+    assert.ok(critical.confidence >= 90);
   });
 
   it('derives CISA KEV severity from knownRansomwareCampaignUse', () => {
@@ -117,7 +145,7 @@ describe('Feed-derived threat attribute helpers', () => {
 
     const nonRw = deriveKevAttributes({
       knownRansomwareCampaignUse: 'Unknown',
-      vulnerabilityName: 'Component Information Disclosure',
+      vulnerabilityName: 'Source code inspection note (inactive)',
     });
     assert.equal(nonRw.severity, 'High');
   });

@@ -1,7 +1,7 @@
 export type IndicatorType = 'IPv4' | 'Domain' | 'URL' | 'SHA256' | 'CVE';
-export type ThreatSeverity = 'Critical' | 'High' | 'Medium' | 'Low';
+export type ThreatSeverity = 'Critical' | 'High' | 'Medium' | 'Low' | 'Unclassified';
 export type ThreatStatus = 'Active' | 'Investigating' | 'Mitigated';
-export type FeedSourceType = 'AlienVault OTX' | 'Selenium Web Scraper' | 'CISA KEV' | 'Abuse.ch Feodo';
+export type FeedSourceType = 'AlienVault OTX' | 'CISA KEV' | 'Abuse.ch Feodo' | 'Manual Batch';
 
 export interface ThreatIndicator {
   id: string;
@@ -15,6 +15,7 @@ export interface ThreatIndicator {
   severity: ThreatSeverity;
   confidenceScore: number;
   recurrenceCount: number;
+  daysObserved: number;
   zScore: number;
   mitreTactic: string;
   country: string;
@@ -93,6 +94,7 @@ export interface ScatterPoint {
   category: string;
   severity: ThreatSeverity;
   recurrence: number;
+  daysObserved: number;
   zScore: number;
   confidence: number;
   source: FeedSourceType;
